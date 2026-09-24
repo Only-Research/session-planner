@@ -1,0 +1,11 @@
+{
+  "name": "session-planner-server",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "dependencies": {
+    "cors": "2.8.6",
+    "express": "4.22.3",
+    "js-yaml": "4.3.2"
+  }
+}

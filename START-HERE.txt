@@ -1,0 +1,35 @@
+Session Planner: start here
+
+Session Planner is a planning board you and your AI agent work on together. It runs on your own Mac. Before you start, install Node.js 20 or newer (free, from https://nodejs.org) and Claude Code or Codex, and open your agent once.
+
+Move this folder to where you want to keep it. Your home folder is a good place: in Finder, choose Go, then Home. Your planning sessions are saved inside this folder. Then set it up one of two ways.
+
+
+WITH YOUR AGENT (easiest)
+
+Open Claude Code or Codex, choose this folder as the one to work in, and say:
+
+    Set up Session Planner from this folder.
+
+It follows the guide in docs/install-with-an-agent.md and shows you each step before running it.
+
+
+BY DOUBLE-CLICKING
+
+Double-click install.command. The first time, your Mac blocks it because it came from the internet and Apple hasn't checked it. To allow it:
+
+    1. Click Done on the message.
+    2. Within the hour, open System Settings and go to Privacy & Security.
+    3. Under Security, click Open Anyway and enter your Mac password.
+    4. Click Open.
+
+A Terminal window shows each check. When it says Session Planner is ready, you can close it. If it lists a problem instead, it says what to do. If the fix means running a command, ask your agent to do it; otherwise fix it and double-click install.command again.
+
+
+START PLANNING
+
+Start a new conversation with your agent and ask, for example:
+
+    Let's plan my kitchen renovation in Session Planner.
+
+If you got this folder with git clone instead of the zip, the installer will first tell you to install the planner's code packages. README.md has the details.

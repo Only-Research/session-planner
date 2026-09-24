@@ -1,0 +1,10 @@
+# Your planning sessions. Everything you write in the planner lives in runs/ and
+# stays on your machine. Never commit it.
+runs/*
+!runs/.gitkeep
+
+# Installed dependencies. Reproduce them with `npm ci --ignore-scripts` in server/,
+# which installs the exact versions recorded in server/package-lock.json.
+node_modules/
+
+.DS_Store

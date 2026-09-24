@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Session Planner</title>
+<script src="vendor/marked-17.0.5.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-base: #1C1C20;
+    --bg-surface: #222228;
+    --bg-elevated: #2A2A31;
+    --bg-hover: #313139;
+    --border: #2E2E36;
+    --border-subtle: #272730;
+    --text-primary: #F1F1F3;
+    --text-secondary: #A4A4AF;
+    --text-tertiary: #72727D;
+    --teal: #5b9fa6;
+    --teal-glow: rgba(91, 159, 166, 0.35);
+    --teal-bg: rgba(91, 159, 166, 0.06);
+    --active: #B07878;
+    --active-glow: rgba(176, 120, 120, 0.22);
+    --staged: #6BA87A;
+    --staged-glow: rgba(107, 168, 122, 0.3);
+    --staged-bg: rgba(107, 168, 122, 0.06);
+    --staged-soft: rgba(107, 168, 122, 0.5);
+    --shelved: #706A65;
+    --shelved-bg: rgba(112, 106, 101, 0.06);
+    --neutral: #7A7A86;
+    --neutral-bg: rgba(122, 122, 134, 0.08);
+    --reject: #A8A8B2;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ════════ TOP BAR ════════ */
+  .topbar {
+    height: 48px; background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex; align-items: center;
+    padding: 0 16px; gap: 10px; flex-shrink: 0;
+  }
+  .topbar-toggle {
+    width: 30px; height: 30px; border-radius: 6px; border: none;
+    background: transparent; color: var(--text-tertiary); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; position: relative;
+  }
+  .topbar-toggle:hover { background: var(--bg-hover); color: var(--text-secondary); }
+  .toggle-badge {
+    position: absolute; top: 3px; right: 3px; width: 7px; height: 7px;
+    border-radius: 50%; background: var(--teal); box-shadow: 0 0 6px var(--teal-glow);
+    animation: pulse 2s ease-in-out infinite; display: none;
+  }
+  .toggle-badge.show { display: block; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  .topbar-title { font-family: 'Newsreader', Georgia, serif; font-size: 17px; font-weight: 400; color: var(--text-primary); }
+  .topbar-divider { width: 1px; height: 14px; background: var(--border); }
+  .topbar-session { font-size: 13px; color: var(--text-tertiary); }
+  .topbar-right { margin-left: auto; display: flex; gap: 14px; font-size: 12px; color: var(--text-tertiary); }
+  .topbar-stat { display: flex; align-items: center; gap: 5px; }
+  .stat-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .stat-dot-active { background: var(--active); box-shadow: 0 0 4px var(--active-glow); }
+  .stat-dot-staged { background: var(--staged); box-shadow: 0 0 4px var(--staged-glow); }
+  .stat-dot-shelved { background: var(--shelved); }
+
+  /* ════════ LAYOUT ════════ */
+  .layout { display: flex; height: calc(100vh - 48px); }
+
+  /* ════════ SIDEBAR ════════ */
+  .sidebar {
+    width: 224px; min-width: 224px; background: var(--bg-surface);
+    border-right: 1px solid var(--border-subtle);
+    display: flex; flex-direction: column; overflow: hidden;
+    transition: width 0.25s ease, min-width 0.25s ease, opacity 0.2s ease;
+  }
+  .sidebar.collapsed { width: 0; min-width: 0; border-right: none; opacity: 0; pointer-events: none; }
+  .sidebar-scroll { flex: 1; overflow-y: auto; padding: 14px 16px; }
+
+  .sb-section { margin-bottom: 16px; }
+  .sb-header {
+    font-size: 12px; font-weight: 500;
+    padding: 3px 0; margin-bottom: 3px;
+    display: flex; align-items: center; gap: 6px;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  .sb-header:hover { opacity: 0.8; }
+  .sb-dot-h { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .sb-h-staged { color: var(--staged); }
+  .sb-h-staged .sb-dot-h { background: var(--staged); box-shadow: 0 0 4px var(--staged-glow); }
+  .sb-h-proposals { color: var(--text-secondary); }
+  .sb-h-proposals .sb-dot-h { background: var(--teal); box-shadow: 0 0 5px var(--teal-glow); }
+  .sb-h-shelved { color: var(--shelved); }
+  .sb-h-shelved .sb-dot-h { background: var(--shelved); }
+  .sb-count { font-size: 11px; font-weight: 500; color: var(--text-tertiary); background: var(--bg-elevated); padding: 0 5px; border-radius: 3px; line-height: 16px; }
+  .sb-chev { margin-left: auto; font-size: 10px; color: var(--text-tertiary); display: inline-block; transition: transform 0.2s; transform: rotate(90deg); }
+  .sb-chev.closed { transform: rotate(0deg); }
+  .sb-new-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 6px var(--teal-glow); animation: pulse 2s ease-in-out infinite; flex-shrink: 0; display: none; }
+  .sb-new-dot.show { display: block; }
+
+  .sb-items { padding-left: 11px; }
+  .sb-items.hidden { display: none; }
+  .sb-row { display: flex; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 5px; cursor: pointer; transition: background 0.15s; }
+  .sb-row:hover { background: var(--bg-hover); }
+  .sb-row-dot { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
+  .sb-row-text { font-size: 12.5px; color: var(--text-secondary); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sb-row-shelved .sb-row-text { color: var(--text-tertiary); }
+  .sb-row-expand { font-size: 11px; color: var(--text-tertiary); opacity: 0; transition: opacity 0.15s; }
+  .sb-row:hover .sb-row-expand { opacity: 1; }
+
+  .sb-prop-row { display: flex; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 5px; cursor: pointer; transition: background 0.15s; }
+  .sb-prop-row:hover { background: var(--bg-hover); }
+  .sb-prop-text { font-size: 12.5px; color: var(--text-secondary); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .sb-prop-open { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 7px; padding: 10px 11px; margin: 3px 0 4px; overflow: hidden; }
+  .sb-prop-open-title { font-size: 12.5px; font-weight: 500; color: var(--text-primary); margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sb-prop-open-body { font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 8px; max-height: 55vh; overflow-y: auto; }
+  .sb-prop-open-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; max-width: 100%; }
+
+  .btn-xs { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500; padding: 3px 7px; border-radius: 4px; cursor: pointer; transition: all 0.15s; border: none; white-space: nowrap; }
+  .btn-xs-stage { background: var(--staged-bg); color: var(--staged); }
+  .btn-xs-stage:hover { background: rgba(107, 168, 122, 0.12); }
+  .btn-xs-shelve { background: var(--shelved-bg); color: var(--shelved); }
+  .btn-xs-shelve:hover { background: rgba(112, 106, 101, 0.1); }
+  .btn-xs-reject { background: var(--neutral-bg); color: var(--reject); min-height: 28px; }
+  .btn-xs-reject:hover { background: rgba(122, 122, 134, 0.14); }
+  .btn-xs-arrow { margin-left: auto; background: var(--teal-bg); color: var(--teal); border: none; border-radius: 4px; width: 22px; height: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
+  .btn-xs-arrow:hover { background: rgba(91, 159, 166, 0.12); }
+
+  .sidebar-nav { border-top: 1px solid var(--border-subtle); padding: 8px 16px; }
+  .sidebar-nav-item { padding: 5px 0; font-size: 12px; color: var(--text-tertiary); cursor: pointer; transition: all 0.15s; }
+  .sidebar-nav-item:hover { color: var(--text-secondary); }
+
+  /* ════════ MAIN ════════ */
+  .main {
+    flex: 1; min-width: 0; overflow-y: auto;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 28px 48px 100px;
+  }
+  @media (max-width: 1200px) { .main { padding: 28px 40px 100px; } }
+  @media (max-width: 900px) { .main { padding: 24px 32px 80px; } }
+
+  .main-inner { width: 100%; max-width: 920px; display: flex; flex-direction: column; gap: 8px; }
+  .workflow-guidance { width: 100%; max-width: 920px; margin-bottom: 18px; color: #B4B4BE; font-size: 13px; }
+
+  /* ── Status ── */
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dot-active { background: var(--active); box-shadow: 0 0 6px var(--active-glow); }
+  .check-touched { flex-shrink: 0; color: var(--staged-soft); display: flex; align-items: center; }
+
+  /* ════════ CARD — COLLAPSED ════════ */
+  .card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .card:hover { border-color: #3A3A44; background: var(--bg-elevated); }
+
+  .card-title-row {
+    display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px;
+  }
+  .card-title { font-size: 15px; font-weight: 500; color: var(--text-primary); flex: 1; }
+  .card-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding-top: 3px; }
+  .card-num { font-size: 11px; font-weight: 400; color: var(--text-tertiary); }
+  .card-body {
+    font-size: 14px; font-weight: 400; color: var(--text-secondary); line-height: 1.5;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+
+  /* ════════ EXPANDED ════════ */
+  .expanded {
+    background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 22px 22px 24px; margin: 4px 0;
+  }
+  .exp-title-row {
+    display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; cursor: pointer;
+  }
+  .exp-title { font-size: 16px; font-weight: 500; color: var(--text-primary); flex: 1; }
+  .exp-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding-top: 4px; }
+  .exp-num { font-size: 11px; font-weight: 400; color: var(--text-tertiary); }
+  .exp-body { font-size: 14px; font-weight: 400; color: var(--text-secondary); line-height: 1.7; margin-bottom: 28px; }
+  .exp-body h3 { font-size: 14px; font-weight: 500; color: var(--text-primary); margin: 16px 0 6px; }
+  .exp-body h3:first-child { margin-top: 0; }
+  .exp-body p { margin-bottom: 8px; }
+  .exp-body ul, .exp-body ol { margin: 4px 0 8px 18px; padding-left: 0; list-style-position: inside; }
+  .exp-body li { margin-bottom: 4px; }
+  .exp-body strong { color: var(--text-primary); font-weight: 500; }
+  .exp-body table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+  .exp-body th { text-align: left; font-weight: 500; color: var(--text-primary); padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  .exp-body td { padding: 6px 10px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); }
+  .exp-body tr:last-child td { border-bottom: none; }
+  .exp-body code { font-size: 13px; background: var(--bg-elevated); padding: 1px 5px; border-radius: 3px; }
+  .exp-body blockquote { border-left: 2px solid var(--border); padding-left: 12px; color: var(--text-tertiary); margin: 8px 0; }
+
+  .exp-divider { height: 1px; background: var(--border-subtle); margin-bottom: 18px; }
+
+  .feedback-input {
+    width: 100%; background: var(--bg-base); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text-primary); font-family: 'Inter', sans-serif;
+    font-size: 14px; padding: 12px 14px; resize: vertical; min-height: 60px;
+    outline: none; line-height: 1.5; margin-bottom: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .feedback-input::placeholder { color: var(--text-tertiary); }
+  .feedback-input:focus { border-color: #3E3E48; box-shadow: 0 0 0 2px rgba(91, 159, 166, 0.08); }
+
+  .action-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .btn {
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500;
+    padding: 7px 15px; border-radius: 6px; cursor: pointer; transition: all 0.15s; border: none;
+  }
+  .btn-approve { background: var(--staged-bg); color: var(--staged); }
+  .btn-approve:hover { background: rgba(107, 168, 122, 0.12); }
+  .btn-neutral { background: var(--neutral-bg); color: var(--neutral); }
+  .btn-neutral:hover { background: rgba(122, 122, 134, 0.14); color: var(--text-secondary); }
+  .btn-trash {
+    color: var(--reject); flex-shrink: 0;
+  }
+  .btn-trash:hover { color: var(--reject); }
+  .btn-speak {
+    background: transparent; border: none;
+    color: var(--text-tertiary); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; transition: all 0.15s; opacity: 0.35;
+  }
+  .btn-speak:hover { opacity: 0.8; color: var(--text-secondary); }
+  .btn-speak.playing { opacity: 0.9; color: var(--teal); }
+
+  /* ════════ SESSION LIST ════════ */
+  .session-list { max-width: 480px; width: 100%; margin-top: 60px; }
+  .session-list h2 { font-size: 15px; font-weight: 500; color: var(--text-primary); margin-bottom: 16px; }
+  .session-list-item {
+    padding: 14px 18px; background: var(--bg-surface); border: 1px solid var(--border);
+    border-radius: 8px; cursor: pointer; transition: all 0.15s; margin-bottom: 6px;
+  }
+  .session-list-item:hover { border-color: #3A3A44; background: var(--bg-elevated); }
+  .session-list-title { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+  .session-list-meta { font-size: 12px; color: var(--text-tertiary); margin-top: 4px; }
+  .empty-state { font-size: 14px; color: var(--text-tertiary); text-align: center; margin-top: 80px; }
+
+  /* ════════ NEW ITEM / SESSION FORM ════════ */
+  .form-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; margin: 0 8px 8px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3); display: none; z-index: 10;
+  }
+  .form-overlay.show { display: block; }
+  .form-heading { font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 12px; }
+  .form-input {
+    width: 100%; background: var(--bg-base); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text-primary); font-family: 'Inter', sans-serif;
+    font-size: 14px; padding: 10px 14px; outline: none; margin-bottom: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .form-input:focus { border-color: #3E3E48; box-shadow: 0 0 0 2px rgba(91, 159, 166, 0.08); }
+  .form-textarea { min-height: 80px; resize: vertical; }
+  .form-actions { display: flex; justify-content: space-between; align-items: center; }
+  .btn-ghost { background: transparent; border: none; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; color: var(--text-tertiary); cursor: pointer; padding: 7px 12px; }
+  .btn-ghost:hover { color: var(--text-secondary); }
+  .btn-teal { background: var(--teal-bg); color: var(--teal); border: none; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; padding: 7px 15px; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
+  .btn-teal:hover { background: rgba(91, 159, 166, 0.12); }
+
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3E3E48; }
+
+  .exp-body a, .sb-prop-open-body a, .approval-note a, .saved-feedback a { color: #83bd91; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+  .exp-body a:visited, .sb-prop-open-body a:visited, .approval-note a:visited { color: #a4c5aa; }
+  .exp-body a:hover, .sb-prop-open-body a:hover, .approval-note a:hover { color: #b8e2c2; }
+  a:focus-visible, button:focus-visible, [tabindex]:focus-visible { outline: 2px solid #83bd91; outline-offset: 3px; }
+  .btn-trash:focus-visible, .btn-xs-reject:focus-visible { outline-color: var(--reject); }
+  .review-state { color: var(--text-secondary); font-size: 11px; font-weight: 400; }
+  .approval-note { margin: 14px 0; padding: 12px; border-left: 2px solid var(--staged); background: var(--staged-bg); overflow-wrap: anywhere; }
+  .approval-note p { margin: 6px 0; }
+  .change-notice { margin: 12px 0; color: #d7bd92; font-size: 13px; }
+  #connection-status, #pending-recovery {
+    /* #main centres its children and caps content at 920px; match that or the
+       banner runs wider than every card beneath it. */
+    width: 100%; max-width: 920px; align-self: center;
+    margin: 0 0 16px; padding: 10px 14px; font-size: 13px; line-height: 1.6;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-left: 2px solid #d7bd92; border-radius: 7px; color: #d7bd92;
+  }
+  #pending-recovery { border-left-color: #5b9fa6; color: var(--text-secondary); }
+  #pending-recovery button { margin-left: 8px; }
+  .draft-label { display: block; margin: 12px 0 6px; color: var(--text-secondary); font-size: 13px; }
+  .sb-prop-open-title { white-space: normal; cursor: pointer; }
+  .sb-prop-open-body { font-size: 13px; overflow-wrap: anywhere; }
+  .sb-prop-open-body table { display: block; overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="topbar-toggle" id="sidebar-toggle">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <rect x="2" y="2.5" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="6" y1="3" x2="6" y2="13" stroke="currentColor" stroke-width="1.1"/>
+    </svg>
+    <span class="toggle-badge" id="toggle-badge"></span>
+  </button>
+  <span class="topbar-title">Session Planner</span>
+  <span class="topbar-divider" id="topbar-divider" style="display:none"></span>
+  <span class="topbar-session" id="topbar-session"></span>
+  <div class="topbar-right" id="topbar-stats"></div>
+</div>
+
+<div class="layout">
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-scroll">
+      <div class="sb-section" id="sb-proposals"></div>
+      <div class="sb-section" id="sb-staged"></div>
+      <div class="sb-section" id="sb-shelved"></div>
+    </div>
+    <div style="position:relative">
+      <div class="form-overlay" id="form-new-item">
+        <div class="form-heading">New Item</div>
+        <input type="text" class="form-input" id="new-item-title" placeholder="Title">
+        <textarea class="form-input form-textarea" id="new-item-notes" placeholder="Notes / context for the agent..."></textarea>
+        <div class="form-actions">
+          <button class="btn-ghost" id="new-item-cancel">Cancel</button>
+          <button class="btn-teal" id="new-item-create">Create</button>
+        </div>
+      </div>
+      <div class="form-overlay" id="form-new-session">
+        <div class="form-heading">New Session</div>
+        <input type="text" class="form-input" id="new-session-name" placeholder="Session name">
+        <div class="form-actions">
+          <button class="btn-ghost" id="new-session-cancel">Cancel</button>
+          <button class="btn-teal" id="new-session-create">Create</button>
+        </div>
+      </div>
+      <div class="sidebar-nav" id="sidebar-nav">
+        <div class="sidebar-nav-item" id="nav-new-item">+ New item</div>
+        <div class="sidebar-nav-item" id="nav-new-run">+ New session</div>
+        <div class="sidebar-nav-item" id="nav-all-sessions">All sessions</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main" id="main">
+    <p class="workflow-guidance" id="workflow-guidance" hidden>Save feedback or stage items at your own pace. When ready, ask your agent in chat to refresh the plan. Saving feedback does not start the agent.</p>
+    <div class="main-inner" id="main-inner"></div>
+  </div>
+</div>
+
+<script>
+const API = '';
+const AUTH_TOKEN = '__SESSION_PLANNER_TOKEN__';
+const nativeFetch = window.fetch.bind(window);
+async function plannerFetch(url, options = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await nativeFetch(url, { ...options, signal: controller.signal, headers: { ...options.headers, 'X-Session-Planner-Token': AUTH_TOKEN } });
+    const body = await response.text();
+    return new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers });
+  }
+  finally { clearTimeout(timer); }
+}
+// An error the server answered with is shown as the server's own message; only a
+// dropped connection or an outdated token (401) means reopening the link.
+async function responseError(res, fallback) {
+  if (res.status === 401) return new Error(fallback);
+  let message = fallback;
+  try { message = (await res.json()).error || fallback; } catch {}
+  return Object.assign(new Error(message), { fromServer: true });
+}
+function connectionStatus(error) {
+  let box = document.getElementById('connection-status');
+  if (!error) { box?.remove(); return; }
+  if (!box) { box = document.createElement('div'); box.id = 'connection-status'; box.setAttribute('role', 'status'); document.getElementById('main').prepend(box); }
+  if (error.fromServer) { box.textContent = `The planner couldn't load this: ${error.message}`; return; }
+  box.textContent = 'Connection interrupted. Unsaved text is held in this tab only. Reopen the planner link in this same tab to reconnect. If the link opens a different address than this page, copy your unsaved text first — it will not carry over.';
+}
+const pendingActions = new Set();
+const drafts = new Map();
+const draftScopes = new Map();
+function draftKey(session, id) {
+  const scope = draftScopes.get(session);
+  if (!scope) throw new Error('Wait for this session to load before editing.');
+  return `session-planner-draft:${scope}:${id}`;
+}
+function getDraft(session, id) {
+  const key = draftKey(session, id);
+  if (drafts.has(key)) return drafts.get(key);
+  try { return sessionStorage.getItem(key) || ''; } catch { return ''; }
+}
+function saveDraft(session, id, value, revision) {
+  const key = draftKey(session, id);
+  // A restored draft keeps its original (possibly unknown) review basis.
+  const base = getDraft(session, id) ? draftRevision(session, id) : revision || null;
+  drafts.set(key, value);
+  if (value) draftBases.set(key, base);
+  else draftBases.delete(key);
+  try {
+    if (value) {
+      sessionStorage.setItem(key, value);
+      if (base) sessionStorage.setItem(key + ':revision', base);
+      else sessionStorage.removeItem(key + ':revision');
+    } else {
+      sessionStorage.removeItem(key); sessionStorage.removeItem(key + ':revision');
+    }
+  } catch {}
+}
+
+function newItemDraft(session) {
+  let value;
+  try { value = JSON.parse(getDraft(session, 'new-item-form')); } catch {}
+  return { title: typeof value?.title === 'string' ? value.title : '', notes: typeof value?.notes === 'string' ? value.notes : '' };
+}
+function clearSubmittedNewItemDraft(session, title, notes) {
+  const saved = newItemDraft(session);
+  if (saved.title === title && saved.notes === notes) saveDraft(session, 'new-item-form', '');
+}
+
+const draftBases = new Map();
+function draftRevision(session, id) {
+  const key = draftKey(session, id);
+  if (draftBases.has(key)) return draftBases.get(key);
+  try { return sessionStorage.getItem(key + ':revision'); } catch { return null; }
+}
+function rebaseDraft(session, id, revision) {
+  const key = draftKey(session, id);
+  draftBases.set(key, revision);
+  try { sessionStorage.setItem(key + ':revision', revision); } catch {}
+}
+const requests = new Map();
+function operationRequest(session, id, route, payload) {
+  const key = draftKey(session, id) + ':request';
+  let saved = requests.get(key);
+  try { saved ||= JSON.parse(sessionStorage.getItem(key)); } catch {}
+  const fingerprint = JSON.stringify([route, payload]);
+  if (saved && saved.fingerprint !== fingerprint) throw new Error('Retry the unconfirmed save before submitting a different action. Your current draft is kept.');
+  if (!saved) {
+    saved = { fingerprint, body: { ...payload, operationId: crypto.randomUUID() } };
+    requests.set(key, saved);
+    try { sessionStorage.setItem(key, JSON.stringify(saved)); } catch {}
+  }
+  return saved.body;
+}
+function clearRequest(session, id) {
+  const key = draftKey(session, id) + ':request';
+  requests.delete(key); try { sessionStorage.removeItem(key); } catch {}
+}
+// Reconcile keyed elements instead of replacing reading surfaces on each poll.
+// Unchanged nodes retain scroll, focus, selection and browser input state.
+function elementKey(node) {
+  if (node.nodeType !== 1) return null;
+  return node.dataset.action ? `action:${node.dataset.action}:${node.dataset.id}` :
+    node.dataset.propId ? `proposal:${node.dataset.propId}` :
+    node.dataset.itemId ? `${node.tagName}:${node.className}:${node.dataset.itemId}` :
+    node.id ? `id:${node.id}` : null;
+}
+function syncNode(old, fresh) {
+  if (old.nodeType !== fresh.nodeType || old.nodeName !== fresh.nodeName) { old.replaceWith(fresh); return fresh; }
+  if (old.nodeType === 3) { if (old.nodeValue !== fresh.nodeValue) old.nodeValue = fresh.nodeValue; return; }
+  if (old.nodeType !== 1) return;
+  for (const a of [...old.attributes]) if (!fresh.hasAttribute(a.name) && a.name !== 'open') old.removeAttribute(a.name);
+  for (const a of [...fresh.attributes]) if (old.getAttribute(a.name) !== a.value) old.setAttribute(a.name, a.value);
+  if (old.tagName === 'TEXTAREA') return; // Draft value/caret belong to the user.
+  syncChildren(old, fresh);
+}
+function syncChildren(parent, fresh) {
+  let cursor = parent.firstChild;
+  for (const incoming of [...fresh.childNodes]) {
+    const key = elementKey(incoming);
+    let existing = key ? [...parent.childNodes].find(n => elementKey(n) === key) : cursor;
+    if (existing && !key && elementKey(existing)) existing = null;
+    if (!existing) { parent.insertBefore(incoming, cursor); continue; }
+    if (existing !== cursor) parent.insertBefore(existing, cursor);
+    const current = syncNode(existing, incoming) || existing;
+    cursor = current.nextSibling;
+  }
+  while (cursor) { const next = cursor.nextSibling; cursor.remove(); cursor = next; }
+}
+function syncHTML(element, html) {
+  const template = document.createElement('template'); template.innerHTML = html;
+  syncChildren(element, template.content);
+}
+function reviewIndicator(item) {
+  const labels = { pending: 'Feedback saved', updated: 'Updated — ready to review', reviewed: 'Reviewed — no change needed', staged: 'Staged' };
+  return labels[item.processingState] ? `<span class="review-state">${labels[item.processingState]}</span>` : '<span class="dot dot-active"></span>';
+}
+function changeNotice(item) {
+  const base = draftRevision(state.currentSession, item.id);
+  return getDraft(state.currentSession, item.id) && (!base || base !== item.revision) ?
+    `<div class="change-notice">This item changed since this draft began. Your draft is kept. <button class="btn btn-neutral" data-action="review-latest" data-id="${item.id}">Review latest version</button></div>` : '';
+}
+function showError(error) {
+  let box = document.getElementById('planner-error');
+  if (!box) {
+    box = document.createElement('div'); box.id = 'planner-error'; box.setAttribute('role', 'alert');
+    box.style.cssText = 'position:fixed;bottom:20px;left:25%;right:25%;z-index:1000;padding:16px;background:#403330;color:#f0e9e0;border-radius:8px;cursor:pointer';
+    box.title = 'Click to dismiss'; box.onclick = () => box.remove(); document.body.appendChild(box);
+  }
+  box.textContent = error.message || String(error);
+}
+window.addEventListener('unhandledrejection', event => { event.preventDefault(); showError(event.reason); });
+// Cards, rows and section headers are divs. Give them real keyboard activation
+// so the board can be operated without a mouse. Registered once, at init.
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  // Native controls handle their own keys; never double-fire through their container.
+  if (event.target.closest('button, a, input, textarea, select')) return;
+  const target = event.target.closest('[role="button"][tabindex="0"]');
+  if (!target) return;
+  event.preventDefault();
+  const itemId = target.dataset.itemId, propId = target.dataset.propId;
+  target.click();
+  if (!itemId && !propId) return;
+  // Activating a card replaces its DOM node, so focus falls back to <body> and a
+  // keyboard user would have to tab from the top again. Hand focus to whatever
+  // replaced it — but only if nothing else has taken focus in the meantime.
+  setTimeout(() => {
+    if (document.activeElement && document.activeElement !== document.body) return;
+    const selector = itemId
+      ? `.exp-title-row[data-item-id="${itemId}"], .card[data-item-id="${itemId}"], .sb-row[data-item-id="${itemId}"]`
+      : `.sb-prop-open[data-prop-id="${propId}"] .sb-prop-open-title, .sb-prop-row[data-prop-id="${propId}"]`;
+    document.querySelector(selector)?.focus();
+  }, 250);
+});
+document.addEventListener('input', event => {
+  if (event.target.matches('#new-item-title, #new-item-notes') && draftScopes.has(state.currentSession)) {
+    const title = document.getElementById('new-item-title').value, notes = document.getElementById('new-item-notes').value;
+    saveDraft(state.currentSession, 'new-item-form', title || notes ? JSON.stringify({ title, notes }) : '');
+  }
+  if (event.target.matches('.feedback-input')) {
+    const id = Number(event.target.dataset.itemId);
+    const item = state.items.find(i => i.id === id);
+    saveDraft(state.currentSession, id, event.target.value, item?.displayedRevision || item?.revision);
+    document.querySelectorAll(`[data-action="approve"][data-id="${id}"], [data-action="stage"][data-id="${id}"]`).forEach(b => b.textContent = event.target.value.trim() ? 'Stage with note' : 'Stage');
+  }
+});
+window.addEventListener('beforeunload', event => {
+  if ([...document.querySelectorAll('textarea,input.form-input')].some(input => input.value.trim())) { event.preventDefault(); event.returnValue = ''; }
+});
+let state = {
+  currentSession: null,
+  sessions: [],
+  items: [],
+  expandedItems: new Set(),
+  expandedProposals: new Set(),
+  sidebarCollapsed: false,
+  collapsedSections: new Set(),
+  pollTimer: null,
+  generation: 0,
+  polling: false
+};
+
+// ════════ INIT ════════
+
+function init() {
+  document.getElementById('sidebar-toggle').addEventListener('click', toggleSidebar);
+  document.getElementById('nav-all-sessions').addEventListener('click', () => navigateTo(null));
+
+  // New Item form
+  document.getElementById('nav-new-item').addEventListener('click', () => {
+    if (!draftScopes.has(state.currentSession)) return;
+    const saved = newItemDraft(state.currentSession);
+    document.getElementById('new-item-title').value = saved.title;
+    document.getElementById('new-item-notes').value = saved.notes;
+    document.getElementById('form-new-item').classList.add('show');
+    document.getElementById('new-item-title').focus();
+  });
+  document.getElementById('new-item-cancel').addEventListener('click', () => {
+    if (draftScopes.has(state.currentSession)) saveDraft(state.currentSession, 'new-item-form', '');
+    document.getElementById('form-new-item').classList.remove('show');
+    document.getElementById('new-item-title').value = '';
+    document.getElementById('new-item-notes').value = '';
+  });
+  document.getElementById('new-item-create').addEventListener('click', async () => {
+    const session = state.currentSession, generation = state.generation;
+    const titleEl = document.getElementById('new-item-title'), notesEl = document.getElementById('new-item-notes');
+    const title = titleEl.value, notes = notesEl.value;
+    const button = document.getElementById('new-item-create');
+    if (!title.trim() || !session || button.disabled) return;
+    button.disabled = true;
+    try {
+      await apiPost(`/sessions/${session}/items/new`, operationRequest(session, 'new-item', 'create', { title, notes }));
+      clearRequest(session, 'new-item');
+      clearSubmittedNewItemDraft(session, title, notes);
+      if (state.currentSession === session && titleEl.value === title && notesEl.value === notes) {
+        document.getElementById('form-new-item').classList.remove('show'); titleEl.value = ''; notesEl.value = '';
+      }
+      if (state.generation === generation) await pollSession();
+    } catch (error) { if ([400, 404, 409, 413].includes(error.status)) clearRequest(session, 'new-item'); showError(error); }
+    finally { button.disabled = false; renderRecovery(); }
+  });
+
+  // New Session form
+  document.getElementById('nav-new-run').addEventListener('click', () => {
+    document.getElementById('form-new-session').classList.add('show');
+    document.getElementById('new-session-name').focus();
+  });
+  document.getElementById('new-session-cancel').addEventListener('click', () => {
+    document.getElementById('form-new-session').classList.remove('show');
+    document.getElementById('new-session-name').value = '';
+  });
+  document.getElementById('new-session-create').addEventListener('click', async () => {
+    const name = document.getElementById('new-session-name').value.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!name) return;
+    await apiPost('/sessions/new', { name });
+    document.getElementById('form-new-session').classList.remove('show');
+    document.getElementById('new-session-name').value = '';
+    navigateTo(name);
+  });
+
+  // Apply initial sidebar state
+  if (state.sidebarCollapsed) {
+    document.getElementById('sidebar').classList.add('collapsed');
+  }
+
+  const hash = sessionFromHash();
+  if (hash) {
+    navigateTo(hash);
+  } else {
+    loadSessionList();
+  }
+}
+
+// The address after # names the session; anything that isn't a valid session
+// name is ignored rather than passed into an API path.
+function sessionFromHash() {
+  const hash = window.location.hash.slice(1);
+  return /^[a-z0-9][a-z0-9-]{0,79}$/.test(hash) ? hash : '';
+}
+
+function navigateTo(sessionName) {
+  state.generation++;
+  document.getElementById('planner-error')?.remove();
+  state.polling = false;
+  if (state.pollTimer) clearInterval(state.pollTimer);
+  state.currentSession = sessionName;
+  document.getElementById('main-inner').innerHTML = '<div class="empty-state">Loading…</div>';
+  for (const id of ['sb-proposals','sb-staged','sb-shelved']) document.getElementById(id).replaceChildren();
+  document.getElementById('form-new-item').classList.remove('show');
+  document.getElementById('new-item-title').value = '';
+  document.getElementById('new-item-notes').value = '';
+  document.getElementById('pending-recovery')?.remove();
+  state.items = [];
+  state.expandedItems.clear();
+  state.expandedProposals.clear();
+
+  const generation = state.generation;
+  if (sessionName) {
+    window.location.hash = sessionName;
+    // Initial load — fetch data and do a full render
+    (async () => {
+      try {
+        const res = await plannerFetch(`${API}/sessions/${sessionName}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (state.generation !== generation) return;
+          draftScopes.set(sessionName, data.draftScope);
+          connectionStatus(null);
+          state.sessionMeta = data.session;
+          state.items = data.items;
+          renderFull();
+        } else throw await responseError(res, 'Could not load session');
+      } catch (error) { if (state.generation === generation) connectionStatus(error); }
+    })();
+    state.pollTimer = setInterval(pollSession, 2500);
+  } else {
+    window.location.hash = '';
+    loadSessionList();
+  }
+}
+
+// ════════ DATA ════════
+
+async function loadSessionList() {
+  const generation = state.generation;
+  state.currentSession = null;
+  try {
+    const res = await plannerFetch(`${API}/sessions`);
+    if (!res.ok) throw await responseError(res, 'Could not load sessions');
+    const sessions = await res.json();
+    if (state.generation !== generation) return;
+    state.sessions = sessions; connectionStatus(null);
+  } catch (error) { if (state.generation === generation) connectionStatus(error); return; }
+  if (state.generation === generation) renderSessionList();
+}
+
+function mergeFull(item, full, preserveDraft = true) {
+  const base = draftRevision(state.currentSession, item.id);
+  const keepBody = preserveDraft && getDraft(state.currentSession, item.id) && base && base !== full.revision && item.content !== undefined;
+  return { ...item, ...full.data, approval: full.data.approval || null,
+    revision: full.revision, processingState: full.processingState, approvalBasis: full.approvalBasis,
+    content: keepBody ? item.content : full.content,
+    displayedRevision: keepBody ? item.displayedRevision : full.revision,
+    proposalUpdated: item.proposalUpdated || (item.status === "proposed" && item.content !== undefined && item.content !== full.content) };
+}
+async function pollSession() {
+  const session = state.currentSession, generation = state.generation;
+  if (!session || state.polling || [...pendingActions].some(key => key.startsWith(session + "/"))) return;
+  state.polling = true;
+  try {
+    const res = await plannerFetch(`${API}/sessions/${session}`);
+    if (!res.ok) throw await responseError(res, 'Could not refresh session');
+    const data = await res.json();
+    if (state.generation !== generation) return;
+    draftScopes.set(session, data.draftScope);
+    const previous = new Map(state.items.map(i => [i.id, i]));
+    const items = data.items.map(item => ({ ...previous.get(item.id), ...item }));
+    for (let n = 0; n < items.length; n++) {
+      const item = items[n];
+      if ((state.expandedItems.has(item.id) || state.expandedProposals.has(item.id)) && (item.content === undefined || item.displayedRevision !== item.revision)) {
+        const response = await plannerFetch(`${API}/sessions/${session}/items/${item.id}`);
+        if (!response.ok) throw await responseError(response, 'Could not refresh item');
+        const full = await response.json();
+        if (state.generation !== generation) return;
+        items[n] = mergeFull(item, full);
+      }
+    }
+    if (state.generation !== generation) return;
+    state.items = items; state.sessionMeta = data.session;
+    connectionStatus(null); renderPoll();
+  } catch (err) { if (state.generation === generation) connectionStatus(err); }
+  finally { if (state.generation === generation) state.polling = false; }
+}
+async function fetchAndRenderItem(id, reviewLatest = false) {
+  const session = state.currentSession, generation = ++state.generation;
+  state.polling = false;
+  renderFull();
+  try {
+    const res = await plannerFetch(`${API}/sessions/${session}/items/${id}`);
+    if (!res.ok) throw await responseError(res, 'Could not read item');
+    const full = await res.json();
+    if (state.generation !== generation) return;
+    const idx = state.items.findIndex(i => i.id === id);
+    if (idx !== -1) {
+      state.items[idx] = mergeFull(state.items[idx], full, !reviewLatest);
+      if (reviewLatest && getDraft(session, id)) rebaseDraft(session, id, full.revision);
+    }
+    connectionStatus(null);
+    renderFull();
+  } catch (err) {
+    // A dropped server here must read like any other interruption, not a raw fetch error.
+    if (state.generation === generation) { connectionStatus(err); renderFull(); }
+  }
+}
+
+// ════════ RENDER ════════
+
+function renderPoll() {
+  renderRecovery();
+  // Reconcile saved changes, including open cards; retain draft review bases and reading state.
+  renderTopBar();
+  renderSidebar();
+  renderMainField();
+}
+
+function renderFull() {
+  renderRecovery();
+  // The user's side: full render after a button action.
+  renderTopBar();
+  renderSidebar();
+  renderMainField();
+}
+
+function renderTopBar() {
+  const meta = state.sessionMeta;
+  const divider = document.getElementById('topbar-divider');
+  const sessionEl = document.getElementById('topbar-session');
+  const statsEl = document.getElementById('topbar-stats');
+  document.getElementById('workflow-guidance').hidden = !meta;
+
+  if (!meta) {
+    divider.style.display = 'none';
+    sessionEl.textContent = '';
+    statsEl.innerHTML = '';
+    return;
+  }
+
+  divider.style.display = '';
+  sessionEl.textContent = meta.title;
+
+  const items = state.items;
+  const redCount = items.filter(i => i.status === 'red').length;
+  const greenCount = items.filter(i => i.status === 'green').length;
+  const shelfCount = items.filter(i => i.status === 'shelf').length;
+
+  statsEl.innerHTML = `
+    <div class="topbar-stat"><span class="stat-dot stat-dot-active"></span> ${redCount}</div>
+    <div class="topbar-stat"><span class="stat-dot stat-dot-staged"></span> ${greenCount}</div>
+    <div class="topbar-stat"><span class="stat-dot stat-dot-shelved"></span> ${shelfCount}</div>
+  `;
+}
+
+function renderSidebar() {
+  const items = state.items;
+  const proposals = items.filter(i => i.status === 'proposed');
+  const staged = items.filter(i => i.status === 'green');
+  const shelved = items.filter(i => i.status === 'shelf');
+
+  // Proposal notification dot
+  const badge = document.getElementById('toggle-badge');
+  const hasProposals = proposals.length > 0;
+  badge.classList.toggle('show', hasProposals && state.sidebarCollapsed);
+
+  // Proposals section
+  const propEl = document.getElementById('sb-proposals');
+  const propCollapsed = state.collapsedSections.has('proposals');
+  syncHTML(propEl, `
+    <div class="sb-header sb-h-proposals" data-section="proposals" role="button" tabindex="0">
+      <span class="sb-dot-h"></span> Proposals <span class="sb-count">${proposals.length}</span>
+      ${hasProposals ? '<span class="sb-new-dot show"></span>' : ''}
+      <span class="sb-chev ${propCollapsed ? 'closed' : ''}">&#8250;</span>
+    </div>
+    <div class="sb-items ${propCollapsed ? 'hidden' : ''}">
+      ${proposals.map(p => renderProposalItem(p)).join('')}
+    </div>
+  `);
+
+  // Staged section
+  const stgEl = document.getElementById('sb-staged');
+  const stgCollapsed = state.collapsedSections.has('staged');
+  syncHTML(stgEl, `
+    <div class="sb-header sb-h-staged" data-section="staged" role="button" tabindex="0">
+      <span class="sb-dot-h"></span> Staged <span class="sb-count">${staged.length}</span>
+      <span class="sb-chev ${stgCollapsed ? 'closed' : ''}">&#8250;</span>
+    </div>
+    <div class="sb-items ${stgCollapsed ? 'hidden' : ''}">
+      ${staged.map(s => `
+        <div class="sb-row" data-item-id="${s.id}" role="button" tabindex="0">
+          <span class="sb-row-dot" style="background:var(--staged);box-shadow:0 0 4px var(--staged-glow)"></span>
+          <span class="sb-row-text">${esc(s.title)}</span>
+          <span class="sb-row-expand">&#8250;</span>
+        </div>
+      `).join('')}
+    </div>
+  `);
+
+  // Shelved section
+  const shvEl = document.getElementById('sb-shelved');
+  const shvCollapsed = state.collapsedSections.has('shelved');
+  syncHTML(shvEl, `
+    <div class="sb-header sb-h-shelved" data-section="shelved" role="button" tabindex="0">
+      <span class="sb-dot-h"></span> Shelved <span class="sb-count">${shelved.length}</span>
+      <span class="sb-chev ${shvCollapsed ? 'closed' : ''}">&#8250;</span>
+    </div>
+    <div class="sb-items ${shvCollapsed ? 'hidden' : ''}">
+      ${shelved.map(s => `
+        <div class="sb-row sb-row-shelved" data-item-id="${s.id}" role="button" tabindex="0">
+          <span class="sb-row-dot" style="background:var(--shelved)"></span>
+          <span class="sb-row-text">${esc(s.title)}</span>
+          <span class="sb-row-expand">&#8250;</span>
+        </div>
+      `).join('')}
+    </div>
+  `);
+
+  // Event listeners
+  propEl.querySelector('.sb-header').onclick = () => toggleSection('proposals');
+  stgEl.querySelector('.sb-header').onclick = () => toggleSection('staged');
+  shvEl.querySelector('.sb-header').onclick = () => toggleSection('shelved');
+
+  // Sidebar row clicks — expand item in main field
+  document.querySelectorAll('.sb-row[data-item-id]').forEach(row => {
+    row.onclick = () => {
+      const id = parseInt(row.dataset.itemId, 10);
+      state.expandedItems.add(id);
+      fetchAndRenderItem(id);
+    };
+  });
+
+  // Proposal row clicks — toggle inline expand
+  document.querySelectorAll('.sb-prop-row[data-prop-id]').forEach(row => {
+    row.onclick = () => {
+      const id = parseInt(row.dataset.propId, 10);
+      if (state.expandedProposals.has(id)) state.expandedProposals.delete(id);
+      else { state.expandedProposals.add(id); fetchAndRenderItem(id); return; }
+      renderSidebar();
+    };
+  });
+
+  // Expanded proposal title click — collapse
+  document.querySelectorAll('.sb-prop-open[data-prop-id]').forEach(el => {
+    el.querySelector('.sb-prop-open-title').onclick = () => {
+      const id = parseInt(el.dataset.propId, 10);
+      state.expandedProposals.delete(id);
+      renderSidebar();
+    };
+  });
+
+  // Wire proposal action buttons (stage, shelve, reject, to-field)
+  wireActionButtons();
+}
+
+function renderProposalItem(p) {
+  if (state.expandedProposals.has(p.id)) {
+    if (!hasDisplayedBody(p)) return `<div class="sb-prop-open" data-prop-id="${p.id}"><div class="sb-prop-open-title" role="button" tabindex="0" aria-expanded="true">${esc(p.title)}</div><div class="sb-prop-open-body" role="status">Loading proposal…</div><button class="btn btn-neutral" data-action="retry-load" data-id="${p.id}">Retry loading</button></div>`;
+    const bodyHtml = p.content === undefined ? 'Loading proposal…' : renderMarkdown(p.content);
+    return `
+      <div class="sb-prop-open" data-prop-id="${p.id}">
+        <div class="sb-prop-open-title" role="button" tabindex="0" aria-expanded="true">${esc(p.title)}</div>
+        <div class="sb-prop-open-body" tabindex="0">${bodyHtml}</div>
+        ${p.proposalUpdated ? '<div class="change-notice">Proposal updated</div>' : ''}
+        ${changeNotice(p)}
+        <label class="draft-label" for="proposal-note-${p.id}">Decision note (optional)</label>
+        <textarea id="proposal-note-${p.id}" class="feedback-input" placeholder="Any qualification to your approval…" data-item-id="${p.id}">${esc(getDraft(state.currentSession, p.id))}</textarea>
+        <div class="sb-prop-open-actions">
+          <button class="btn-xs btn-xs-stage" data-action="stage" data-id="${p.id}">${getDraft(state.currentSession, p.id).trim() ? "Stage with note" : "Stage"}</button>
+          <button class="btn-xs btn-xs-shelve" data-action="shelve-prop" data-id="${p.id}">Shelve</button>
+          <button class="btn-xs btn-xs-reject" data-action="reject" data-id="${p.id}">Reject</button>
+          <button class="btn-xs-arrow" data-action="to-field" data-id="${p.id}" title="Send to field">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6h7M6.5 3L9.5 6 6.5 9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+  return `<div class="sb-prop-row" data-prop-id="${p.id}" role="button" tabindex="0"><span class="sb-prop-text">${esc(p.title)}</span></div>`;
+}
+
+function getVisibleItems() {
+  const redItems = state.items.filter(i => i.status === 'red');
+  const sidebarExpanded = state.items.filter(i =>
+    (i.status === 'green' || i.status === 'shelf') && state.expandedItems.has(i.id)
+  );
+  return [...redItems, ...sidebarExpanded];
+}
+
+function renderMainField() {
+  const inner = document.getElementById('main-inner');
+  if (!state.currentSession) return;
+  const visible = getVisibleItems();
+  syncHTML(inner, visible.length ? visible.map(item => state.expandedItems.has(item.id) ? renderExpandedCard(item) : renderCollapsedCard(item)).join('') :
+    '<div class="empty-state">No active items. Approved work and proposals are in the sidebar.</div>');
+  inner.querySelectorAll('.card[data-item-id]').forEach(card => {
+    card.onclick = () => { ttsStop(); const id = Number(card.dataset.itemId); state.expandedItems.add(id); fetchAndRenderItem(id); };
+  });
+  inner.querySelectorAll('.exp-title-row[data-item-id]').forEach(row => {
+    row.onclick = () => { ttsStop(); state.expandedItems.delete(Number(row.dataset.itemId)); renderFull(); };
+  });
+  wireActionButtons();
+}
+
+function renderCollapsedCard(item) {
+  const num = String(item.id).padStart(2, '0');
+  const statusIndicator = reviewIndicator(item);
+
+  const bodyPreview = item.preview || stripMarkdown(item.content || '');
+
+  return `
+    <div class="card" data-item-id="${item.id}" role="button" tabindex="0" aria-expanded="false" aria-label="Open item ${item.id}: ${esc(item.title)}">
+      <div class="card-title-row">
+        <span class="card-title">${esc(item.title)}</span>
+        <div class="card-meta">
+          <span class="card-num">${num}</span>
+          ${statusIndicator}
+        </div>
+      </div>
+      ${bodyPreview ? `<div class="card-body">${esc(bodyPreview)}</div>` : ''}
+    </div>
+  `;
+}
+
+function hasDisplayedBody(item) {
+  return typeof item?.content === 'string' && typeof item.displayedRevision === 'string';
+}
+function renderExpandedCard(item) {
+  if (!hasDisplayedBody(item)) return `<div class="expanded" data-item-id="${item.id}"><div class="exp-title-row" data-item-id="${item.id}" role="button" tabindex="0" aria-expanded="true"><span class="exp-title">${esc(item.title)}</span></div><div class="exp-body" role="status">Loading item…</div><button class="btn btn-neutral" data-action="retry-load" data-id="${item.id}">Retry loading</button></div>`;
+  const num = String(item.id).padStart(2, '0');
+  const statusIndicator = reviewIndicator(item);
+
+  const bodyHtml = renderMarkdown(item.content || '');
+  const feedbackHtml = `<details class="saved-feedback" ${item.feedback ? '' : 'hidden'}><summary>Saved feedback</summary><pre style="white-space:pre-wrap;font:inherit;line-height:1.6">${esc(item.feedback || '')}</pre></details>`;
+  const isStaged = item.status === 'green';
+  const isShelved = item.status === 'shelf';
+
+  let actionBar;
+  if (isStaged) {
+    actionBar = `
+      <div class="approval-note"><strong>Approved decision</strong>${item.approval?.note ? renderMarkdown(item.approval.note) : '<p>No qualification recorded.</p>'}</div>
+      <label class="draft-label" for="decision-note-${item.id}">Replace the decision note (source card stays unchanged)</label>
+      <textarea id="decision-note-${item.id}" class="feedback-input" placeholder="Your complete updated decision note…" data-item-id="${item.id}">${esc(getDraft(state.currentSession, item.id))}</textarea>
+      <div class="action-bar">
+        <button class="btn btn-approve" data-action="amend" data-id="${item.id}">Save decision note</button>
+        ${item.approval?.note ? `<button class="btn btn-neutral" data-action="remove-note" data-id="${item.id}">Remove decision note</button>` : ''}
+        <button class="btn btn-neutral" data-action="re-stage" data-id="${item.id}">Close</button>
+        <button class="btn btn-neutral" data-action="bring-back" data-id="${item.id}">Bring back to field</button>
+        <button class="btn btn-neutral btn-trash" data-action="reject" data-id="${item.id}" title="Reject — the saved card is retained">Reject</button>
+        <button class="btn-speak" data-action="speak" data-id="${item.id}" title="Read aloud">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M2 5.5h2l3-2.5v8l-3-2.5H2a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9.5 4.5a3.5 3.5 0 010 5M11 3a5.5 5.5 0 010 8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    `;
+  } else if (isShelved) {
+    actionBar = `
+      ${getDraft(state.currentSession, item.id) ? '<p class="draft-label">Your unsaved draft is kept. Bring this item back to the field to continue editing.</p>' : ''}
+      <div class="action-bar">
+        <button class="btn btn-neutral" data-action="re-shelve" data-id="${item.id}">Shelve</button>
+        <button class="btn btn-neutral" data-action="bring-back" data-id="${item.id}">Bring back to field</button>
+        <button class="btn btn-neutral btn-trash" data-action="reject" data-id="${item.id}" title="Reject — the saved card is retained">Reject</button>
+        <button class="btn-speak" data-action="speak" data-id="${item.id}" title="Read aloud">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M2 5.5h2l3-2.5v8l-3-2.5H2a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9.5 4.5a3.5 3.5 0 010 5M11 3a5.5 5.5 0 010 8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    `;
+  } else {
+    // Active (red) items — full action bar
+    actionBar = `
+      <textarea class="feedback-input" placeholder="Your thoughts on this item..." data-item-id="${item.id}">${esc(getDraft(state.currentSession, item.id))}</textarea>
+      <div class="action-bar">
+        <button class="btn btn-approve" data-action="approve" data-id="${item.id}">${getDraft(state.currentSession, item.id).trim() ? "Stage with note" : "Stage"}</button>
+        <button class="btn btn-neutral" data-action="feedback" data-id="${item.id}">Save Feedback</button>
+        <button class="btn btn-neutral" data-action="shelve" data-id="${item.id}">Shelve</button>
+        <button class="btn btn-neutral btn-trash" data-action="reject" data-id="${item.id}" title="Reject — the saved card is retained">Reject</button>
+        <button class="btn-speak" data-action="speak" data-id="${item.id}" title="Read aloud">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M2 5.5h2l3-2.5v8l-3-2.5H2a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9.5 4.5a3.5 3.5 0 010 5M11 3a5.5 5.5 0 010 8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    `;
+  }
+
+  // Use green dot for staged, stone dot for shelved
+  let dotHtml = statusIndicator;
+  if (isStaged) dotHtml = `<span class="dot" style="background:var(--staged);box-shadow:0 0 6px var(--staged-glow)"></span>`;
+  if (isShelved) dotHtml = `<span class="dot" style="background:var(--shelved)"></span>`;
+
+  return `
+    <div class="expanded" data-item-id="${item.id}">
+      <div class="exp-title-row" data-item-id="${item.id}" role="button" tabindex="0" aria-expanded="true">
+        <span class="exp-title">${esc(item.title)}</span>
+        <div class="exp-meta">
+          <span class="exp-num">${num}</span>
+          ${dotHtml}
+        </div>
+      </div>
+      <div class="exp-body">${bodyHtml}</div>
+      ${feedbackHtml}
+      ${changeNotice(item)}
+      <div class="exp-divider"></div>
+      ${actionBar}
+    </div>
+  `;
+}
+
+function renderSessionList() {
+  const inner = document.getElementById('main-inner');
+  document.getElementById('topbar-divider').style.display = 'none';
+  document.getElementById('topbar-session').textContent = '';
+  document.getElementById('topbar-stats').innerHTML = '';
+
+  if (state.sessions.length === 0) {
+    inner.innerHTML = '<div class="empty-state">No sessions yet.</div>';
+    return;
+  }
+
+  inner.innerHTML = `
+    <div class="session-list">
+      <h2>Sessions</h2>
+      ${state.sessions.map(s => `
+        <div class="session-list-item" data-session="${esc(s.name)}" role="button" tabindex="0">
+          <div class="session-list-title">${esc(s.title)}</div>
+          <div class="session-list-meta">${esc(s.created)}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  inner.querySelectorAll('.session-list-item').forEach(el => {
+    // Assignment, not addEventListener: every handler on a re-rendered node is an
+    // assignment so a repeated render can never stack duplicate handlers.
+    el.onclick = () => navigateTo(el.dataset.session);
+  });
+}
+
+// ════════ MARKDOWN ════════
+
+// Configure marked: ## headings render as h3 inside card body
+marked.use({
+  renderer: {
+    html({ text }) { return esc(text); },
+    image({ text }) { return esc(text || 'Image'); },
+    link({ href, tokens }) {
+      const label = this.parser.parseInline(tokens);
+      if (!/^(https?:|mailto:)/i.test(href || '')) return label;
+      return `<a href="${esc(href).replace(/"/g, '&quot;')}" rel="noopener noreferrer" target="_blank">${label}</a>`;
+    },
+    heading({ tokens, depth }) {
+      const text = this.parser.parseInline(tokens);
+      return `<h3>${text}</h3>`;
+    }
+  }
+});
+
+function renderMarkdown(md) {
+  if (!md) return '';
+  return marked.parse(md);
+}
+
+function stripMarkdown(md) {
+  if (!md) return '';
+  return md
+    .replace(/^## .+$/gm, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/^- /gm, '')
+    .replace(/\n{2,}/g, ' ')
+    .replace(/\n/g, ' ')
+    .trim();
+}
+
+// Safe for element text AND for quoted attribute values. Quotes matter: a card
+// title placed inside an attribute must never be able to close it and add its
+// own attributes or event handlers. Covered by server/test/viewer-escape.test.js.
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+// ════════ API HELPERS ════════
+
+async function apiPost(path, body) {
+  const res = await plannerFetch(`${API}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if (!res.ok) throw Object.assign(new Error(data.error || 'The change was not saved. Try again.'), { status: res.status });
+  return data;
+}
+
+// ════════ INTERACTIONS ════════
+
+function savedRequest(session, id) {
+  const key = draftKey(session, id) + ':request';
+  try { return requests.get(key) || JSON.parse(sessionStorage.getItem(key)); } catch { return null; }
+}
+function renderRecovery() {
+  let box = document.getElementById('pending-recovery');
+  if (!state.currentSession || !draftScopes.has(state.currentSession)) { box?.remove(); return; }
+  const ids = [...state.items.map(item => item.id), 'new-item'].filter(id => savedRequest(state.currentSession, id));
+  if (!ids.length) { box?.remove(); return; }
+  if (!box) { box = document.createElement('div'); box.id = 'pending-recovery'; document.getElementById('main').prepend(box); }
+  syncHTML(box, ids.map(id => `<p>Unconfirmed save: ${esc(state.items.find(i => i.id === id)?.title || 'New item')} <button class="btn btn-neutral" data-retry-id="${id}">Retry saved action</button></p>`).join(''));
+  box.querySelectorAll('[data-retry-id]').forEach(button => { button.disabled = pendingActions.has(`${state.currentSession}/${button.dataset.retryId}`); button.onclick = () => performAction('retry', button.dataset.retryId === 'new-item' ? 'new-item' : Number(button.dataset.retryId), button); });
+}
+async function performAction(action, id, btn) {
+  const session = state.currentSession;
+  if (!session) return;
+  const key = `${session}/${id}`;
+  if (pendingActions.has(key)) return;
+  const item = state.items.find(i => i.id === id);
+  if (!item && id !== 'new-item') return;
+  if (action === 'speak') { ttsToggle(id, btn); return; }
+  if (action === 'retry-load') { await fetchAndRenderItem(id); return; }
+  if (action === 'review-latest') { await fetchAndRenderItem(id, true); return; }
+  if (['re-stage', 're-shelve'].includes(action)) { state.expandedItems.delete(id); renderFull(); return; }
+  pendingActions.add(key); btn.disabled = true;
+  const generation = ++state.generation; state.polling = false;
+  const submitted = getDraft(session, id), base = draftRevision(session, id);
+  try {
+    let route = 'status', payload, body;
+    const saved = savedRequest(session, id);
+    if (action === 'retry') {
+      if (!saved) return;
+      [route] = JSON.parse(saved.fingerprint); body = saved.body;
+    } else {
+      if (!['approve', 'stage', 'amend', 'feedback', 'remove-note', 'bring-back'].includes(action) && submitted.trim()) throw new Error('Save your note or feedback before changing status. Your draft is kept.');
+      const revision = ['remove-note', 'bring-back'].includes(action) ? item.displayedRevision : submitted ? base : item.displayedRevision;
+      if (['approve', 'stage', 'amend', 'remove-note'].includes(action)) {
+        payload = { status: 'green', note: action === 'remove-note' ? '' : submitted, revision };
+      } else if (action === 'feedback') {
+        if (!submitted.trim()) return;
+        route = 'feedback'; payload = { text: submitted, revision };
+      } else {
+        const status = { shelve: 'shelf', 'shelve-prop': 'shelf', reject: 'rejected', 'to-field': 'red', 'bring-back': 'red' }[action];
+        if (!status) return;
+        payload = { status, revision };
+      }
+      if (saved) {
+        const [savedRoute] = JSON.parse(saved.fingerprint);
+        if (savedRoute === route && saved.body.status === payload.status && saved.body.note === payload.note && saved.body.text === payload.text) body = saved.body;
+      }
+      if (!body) {
+        if (!hasDisplayedBody(item)) throw new Error('Wait for the complete item to load before changing it.');
+        if (action === 'amend' && !submitted.trim()) throw new Error('Enter the complete amended decision note, or use Remove decision note.');
+        if (!['remove-note', 'bring-back'].includes(action) && submitted && (!base || base !== item.revision)) throw new Error('This draft belongs to an older version. Review latest version before saving; your draft is kept.');
+        body = operationRequest(session, id, route, payload);
+      }
+    }
+    const endpoint = route === 'create' ? `/sessions/${session}/items/new` : `/sessions/${session}/items/${id}/${route}`;
+    const result = await apiPost(endpoint, body);
+    clearRequest(session, id);
+    const savedText = body.text ?? body.note;
+    if (savedText !== undefined && savedText === getDraft(session, id) && action !== 'remove-note') {
+      saveDraft(session, id, '');
+      if (state.currentSession === session) document.querySelectorAll(`.feedback-input[data-item-id="${id}"]`).forEach(t => t.value = '');
+    }
+    if (route === 'create') clearSubmittedNewItemDraft(session, body.title, body.notes);
+    if (state.currentSession === session && route === 'create') {
+      const title = document.getElementById('new-item-title'), notes = document.getElementById('new-item-notes');
+      if (title.value === body.title && notes.value === body.notes) {
+        title.value = ''; notes.value = ''; document.getElementById('form-new-item').classList.remove('show');
+      }
+    }
+    if (state.generation !== generation) return;
+    document.getElementById('planner-error')?.remove();
+    const idx = state.items.findIndex(i => i.id === id);
+    if (idx >= 0) state.items[idx] = mergeFull(state.items[idx], result, false);
+    if (!['feedback', 'amend', 'remove-note', 'bring-back', 'retry'].includes(action)) { ttsStop(); state.expandedItems.delete(id); state.expandedProposals.delete(id); }
+    renderFull();
+  } catch (error) {
+    if ([400, 404, 409, 413].includes(error.status)) clearRequest(session, id);
+    if (state.generation === generation) showError(error);
+  } finally {
+    pendingActions.delete(key); btn.disabled = false;
+    if (state.generation === generation) { renderRecovery(); await pollSession(); }
+  }
+}
+function wireActionButtons() {
+  document.querySelectorAll('[data-action]').forEach(btn => {
+    if (btn.dataset.action === 'speak' && !speechAvailable) { btn.disabled = true; btn.title = 'Read aloud is unavailable in this browser'; }
+    btn.onclick = e => { e.stopPropagation(); return performAction(btn.dataset.action, Number(btn.dataset.id), btn); };
+  });
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  state.sidebarCollapsed = !state.sidebarCollapsed;
+  sidebar.classList.toggle('collapsed', state.sidebarCollapsed);
+  // Update badge
+  const proposals = state.items.filter(i => i.status === 'proposed');
+  document.getElementById('toggle-badge').classList.toggle('show', proposals.length > 0 && state.sidebarCollapsed);
+}
+
+function toggleSection(name) {
+  if (state.collapsedSections.has(name)) state.collapsedSections.delete(name);
+  else state.collapsedSections.add(name);
+  renderSidebar();
+}
+
+// ════════ TEXT-TO-SPEECH ════════
+
+const speechAvailable = !!window.speechSynthesis && typeof window.SpeechSynthesisUtterance === 'function';
+const tts = {
+  voice: null,
+  playingId: null,
+  playingBtn: null
+};
+
+// Voices load async — grab the list when ready
+function ttsLoadVoice() {
+  if (!speechAvailable) return;
+  // On-device voices only. Some browsers offer network voices (Chrome's "Google …"
+  // voices) that send the text to a remote service; card text must not leave the
+  // computer just because someone pressed read aloud.
+  // Preference, in order: a British English male voice (Daniel on macOS), any
+  // voice named male, any British English voice, any English voice.
+  const voices = speechSynthesis.getVoices().filter(v => v.localService);
+  tts.voice = voices.find(v => v.name === 'Daniel' && v.lang.startsWith('en-GB'))
+    || voices.find(v => v.lang.startsWith('en') && v.name.includes('Male'))
+    || voices.find(v => v.lang.startsWith('en-GB'))
+    || voices.find(v => v.lang.startsWith('en'))
+    || voices[0] || null;
+}
+if (speechAvailable) { ttsLoadVoice(); speechSynthesis.onvoiceschanged = ttsLoadVoice; }
+
+function ttsToggle(itemId, btn) {
+  if (!speechAvailable) return;
+  if (tts.playingId === itemId) {
+    ttsStop();
+    return;
+  }
+  // Without an on-device voice the browser would pick its default, which may be
+  // a network voice. Refuse rather than risk sending the card off the computer.
+  if (!tts.voice) { showError(new Error('Read aloud needs an on-device voice, and this browser has none available.')); return; }
+  // Stop any current playback first
+  ttsStop();
+
+  // Get body text from the expanded card
+  const exp = document.querySelector(`.expanded[data-item-id="${itemId}"]`);
+  if (!exp) return;
+  const bodyEl = exp.querySelector('.exp-body');
+  if (!bodyEl) return;
+  const text = bodyEl.innerText.trim();
+  if (!text) return;
+
+  tts.playingId = itemId;
+  tts.playingBtn = btn;
+  btn.classList.add('playing');
+
+  // Split into sentence-level chunks to avoid Chrome's ~200 char cutoff
+  const chunks = ttsChunk(text);
+  for (let i = 0; i < chunks.length; i++) {
+    const utt = new SpeechSynthesisUtterance(chunks[i]);
+    utt.voice = tts.voice;
+    utt.rate = 0.95;
+    if (i === chunks.length - 1) {
+      utt.onend = () => ttsStop();
+    }
+    speechSynthesis.speak(utt);
+  }
+}
+
+function ttsStop() {
+  if (speechAvailable) speechSynthesis.cancel();
+  if (tts.playingBtn) tts.playingBtn.classList.remove('playing');
+  tts.playingId = null;
+  tts.playingBtn = null;
+}
+
+function ttsChunk(text) {
+  // Group sentences near 180 characters, retaining an unpunctuated tail.
+  const sentences = text.match(/[^.!?]*[.!?]+\s*|[^.!?]+$/g) || [text];
+  const chunks = [];
+  let current = '';
+  for (const s of sentences) {
+    if (current.length + s.length > 180 && current.length > 0) {
+      chunks.push(current.trim());
+      current = s;
+    } else {
+      current += s;
+    }
+  }
+  if (current.trim()) chunks.push(current.trim());
+  return chunks;
+}
+
+// ════════ START ════════
+
+window.addEventListener('hashchange', () => {
+  const hash = sessionFromHash();
+  if (hash !== state.currentSession) {
+    navigateTo(hash || null);
+  }
+});
+
+// Auto-collapse sidebar on narrow viewports
+const mq = window.matchMedia('(max-width: 900px)');
+mq.addEventListener('change', e => {
+  if (e.matches && !state.sidebarCollapsed) toggleSidebar();
+});
+if (mq.matches) state.sidebarCollapsed = true;
+
+init();
+</script>
+
+</body>
+</html>
