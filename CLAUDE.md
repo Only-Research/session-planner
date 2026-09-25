@@ -1,6 +1,6 @@
 # Session Planner
 
-Session Planner is a local collaborative planning surface for refining many independent pieces without flattening their substance into one draft. The user controls staging, shelving, and rejection. The agent brings its own reasoning, research and ideas, organizes and refines the work, and preserves approved content.
+Session Planner is a local collaborative planning surface for refining many independent pieces without flattening their substance into one draft. The user controls staging, shelving, and rejection. The agent works with the user toward clarity a step at a time: it brings its own reasoning, questions and ideas, researches what the user points it toward, organizes and refines the work, and preserves approved content.
 
 ## Orientation
 

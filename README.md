@@ -14,7 +14,7 @@ A long chat tends to melt a complicated plan into one draft, so every change mea
 
 Only you can approve, shelve or reject a card; you do it on the board. The agent's commands can't change a card's status or rewrite one you've approved. It works through your feedback when you tell it to.
 
-The agent is expected to bring its own thinking. Its instructions ask it to add something to every card that you didn't already say (a recommendation with its reasoning, a question worth asking, something worth looking into) and to tell you what it added. A card that only rearranges your words isn't finished.
+The agent is expected to bring its own thinking. Its instructions ask it to add something to every card that you didn't already say (a recommendation with its reasoning, a question worth asking, something worth looking into) and to tell you what it added. A card that only rearranges your words isn't finished. The agent works through the cards with you a step at a time. It asks what you want before it goes looking things up, and keeps its lookups short. A deeper dig waits until you ask for one or agree to its suggestion.
 
 ## What you need
 
@@ -71,7 +71,7 @@ If your agent is already connected to another copy of Session Planner, the insta
 Start a new conversation with your agent and ask in your own words, for example "Let's plan my kitchen renovation in Session Planner."
 
 1. **Framing.** The agent asks what you're planning and where you want help. Before it builds anything, it plays back how it understands the pieces.
-2. **The board.** It creates the session, writes the cards and opens the board. If your agent has a built-in browser, the board opens beside your conversation; either way you get the link. The agent tells you briefly what it contributed beyond what you said.
+2. **The board.** It creates the session, opens the board with the first card, and adds the rest as it writes them. If your agent has a built-in browser, the board opens beside your conversation; either way you get the link. The agent tells you briefly what it contributed beyond what you said.
 3. **Your pass.** The main area of the board is the field, where the cards still in play sit. Read at your own pace, and click a card to open it. Each open card has one text box, four buttons and a speaker icon that reads the card aloud. **Save Feedback** saves what you typed as feedback. **Stage** approves the card and keeps anything you typed as your approval note, so save feedback first if that's what you meant. **Shelve** sets the card aside, and **Reject** takes it off the board. Nothing you do here starts the agent. To add a card yourself, use **New item**.
 4. **Refresh.** When you're ready, tell the agent in chat to work through your feedback. Reloading the browser doesn't do this. The agent goes card by card and tells you where its thinking changed and where it still disagrees with you.
 5. **Compile.** Ask for the plan. The agent writes one document from your approved cards, with a short summary at the top, and follows your approval notes. Where your agent supports it, a second agent checks the draft against what you approved before it's saved, and you're told whether that check ran. The plan is saved under the session's name, and the original cards stay as a record.

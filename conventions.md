@@ -2,7 +2,7 @@
 
 ## Ownership
 
-The user brings the topic and their direction, and decides when each piece is ready. The current agent remains itself and brings its own reasoning and ideas to those pieces, and research where it would materially help, as it organizes and refines them. The browser supports work at the user's pace; feedback processing begins only on an explicit refresh handoff.
+The user brings the topic and their direction, and decides when each piece is ready. The current agent remains itself and works with the user toward clarity a step at a time, bringing its own reasoning, questions and ideas, and research the user has pointed it toward, as it organizes and refines those pieces. The browser supports work at the user's pace; feedback processing begins only on an explicit refresh handoff.
 
 The server owns item IDs, metadata, titles, status storage, feedback, counters, and refresh checkpoints. Agents supply plain Markdown through `server/planner.js`, using the commands in `skills/session-plan/references/operations.md`. Do not manually author YAML, recreate item files, or append a completion marker yourself.
 

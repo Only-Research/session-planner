@@ -40,7 +40,7 @@ node <helper> read <name> <item-id>
 node <helper> update <name> <item-id> --revision <revision> --body <markdown-file>
 ```
 
-Use the returned `revision` from the current read. The update endpoint rejects a stale revision or an item that has become approved, shelved, or rejected. Reread and consider the new feedback instead of retrying the same stale content. A blank-item update additionally needs `--title`; `add` normally handles blank reuse for you.
+Use the returned `revision` from the current read. The update endpoint rejects a stale revision or an item that has become approved, shelved, or rejected. Reread and consider the new feedback instead of retrying the same stale content. An update records the card's current feedback as handled. A blank-item update additionally needs `--title`; `add` normally handles blank reuse for you.
 
 The body file is plain Markdown: Context, Content, optional Options, and Recommendation where useful. It must not contain item metadata. The helper does not grant permission to move statuses. Direct editing of item files, YAML, counters, or changelog boundaries bypasses the guarded protocol and is not the supported workflow. If a command reports that a card file can't be read, tell the user which file; it was probably edited outside the planner, and they can fix it or restore it from a backup. Don't repair its metadata yourself. Files dropped into `inbox/` become proposals automatically; use `propose` yourself and never write files there.
 

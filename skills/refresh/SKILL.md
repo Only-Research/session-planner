@@ -7,9 +7,9 @@ description: Process an explicit user handoff of Session Planner feedback while 
 
 Read `../session-plan/references/operations.md`. For a fresh agent context, first use `resume` and orient to the whole session.
 
-Read [Develop a component](../session-plan/SKILL.md#develop-a-component) and [Useful initiative](../session-plan/SKILL.md#useful-initiative). An explicit refresh includes thoughtful refinement and consideration of worthwhile new proposals, not just transcription. Reorientation alone remains distinct from authorization to change the field.
+Read [Work toward clarity together](../session-plan/SKILL.md#work-toward-clarity-together), [Develop a component](../session-plan/SKILL.md#develop-a-component) and [Useful initiative](../session-plan/SKILL.md#useful-initiative). An explicit refresh includes thoughtful refinement and consideration of worthwhile new proposals, not just transcription. Reorientation alone remains distinct from authorization to change the field.
 
-If investigation is needed, read `../session-plan/references/research.md`: all research goes to subagents, and the coordinator evaluates their returns and owns the writes.
+If investigation is needed, read `../session-plan/references/research.md`: all research goes to subagents, and the coordinator evaluates their returns and owns the writes. Research only what the feedback asks, as a short look unless the user has asked for or agreed to a deep dive. Update the cards that need no research first and tell the user; finish the refresh once the researched cards are written.
 
 When the user hands off their board feedback, run `begin-refresh` for the exact session. Read the returned pending active items with their current bodies and feedback histories. Respond thoughtfully: adjust the framing when needed, incorporate direction, and explain reasoned recommendations. Do not merely echo feedback or reapply old instructions.
 
