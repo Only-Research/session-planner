@@ -92,7 +92,9 @@ async function start() {
       try { require.resolve(name, { paths: [__dirname] }); return false; } catch { return true; }
     });
     if (missing.length) throw new Error(`Session Planner's dependencies are not installed (missing: ${missing.join(', ')}). The user needs to run \`npm ci --ignore-scripts\` in ${__dirname}; see the README. Installing is the user's decision, not part of planning.`);
-    const log = fs.openSync(path.join(runs, '.server.log'), 'a', 0o600);
+    // Never follow a link planted in the store: the log would write through it.
+    const log = fs.openSync(path.join(runs, '.server.log'), fs.constants.O_WRONLY | fs.constants.O_APPEND | fs.constants.O_CREAT | fs.constants.O_NOFOLLOW, 0o600);
+    if (!fs.fstatSync(log).isFile()) { fs.closeSync(log); throw new Error(`${path.join(runs, '.server.log')} is not a regular file`); }
     const child = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
       cwd: ROOT, detached: true, stdio: ['ignore', log, log],
       env: { ...process.env, SESSION_PLANNER_RUNS: runs, SESSION_PLANNER_PORT: String(port), SESSION_PLANNER_PORT_PREFERRED: String(preferred), SESSION_PLANNER_TOKEN: token, SESSION_PLANNER_INSTANCE: instance }

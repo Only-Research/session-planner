@@ -125,7 +125,7 @@ if [ "$problems" -gt 0 ]; then
 fi
 case "$APP" in
   "$HOME/Downloads"/*)
-    say "This folder is inside Downloads. If you clear Downloads, the planner and your saved sessions go with it. To keep it somewhere safer, move the folder into your home folder (in Finder, choose Go, then Home) and run this again."
+    say "This folder is inside Downloads. If you clear Downloads, the planner and your saved sessions go with it. To keep it somewhere safer, ask your agent to stop the planner if it's running, then move the folder into your home folder (in Finder, choose Go, then Home) and run this again."
     say "" ;;
 esac
 say "Session Planner is ready. Keep this folder where it is: your agent finds the planner through it, and your sessions are saved in its runs folder."

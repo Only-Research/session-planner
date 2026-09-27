@@ -120,3 +120,55 @@ test('a hand-edited card that no longer parses names its file to the agent and t
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('hand-edited metadata never decides where a card is written, what the changelog says, or where the log goes', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'session-planner-crafted-'));
+  const runs = path.join(root, 'runs');
+  const run = async (...args) => JSON.parse((await execute(process.execPath, [cli, ...args, '--runs', runs], { timeout: 20000 })).stdout);
+  try {
+    const file = (name, text) => { const p = path.join(root, name); fs.writeFileSync(p, text); return p; };
+    const items = path.join(runs, 'crafted', 'items');
+    await run('create', 'crafted', '--intake', file('intake.md', '# Crafted\n'));
+    await run('add', 'crafted', '--title', 'First', '--body', file('first.md', '## Content\nFirst.\n'));
+    await run('add', 'crafted', '--title', 'Second', '--body', file('second.md', '## Content\nSecond body.\n'));
+    const second = fs.readFileSync(path.join(items, 'item-002.md'), 'utf8');
+
+    // A blank that claims another card's id, and a blank whose id is a path.
+    const blank = n => path.join(items, `item-00${n}.md`);
+    fs.writeFileSync(blank(3), fs.readFileSync(blank(3), 'utf8').replace(/^id: .*$/m, 'id: 2'));
+    fs.writeFileSync(blank(4), fs.readFileSync(blank(4), 'utf8').replace(/^id: .*$/m, 'id: "/../../../escape"'));
+    const third = await run('add', 'crafted', '--title', 'Third', '--body', file('third.md', '## Content\nThird.\n'));
+    assert.deepEqual([third.id, third.filename], [3, 'item-003.md']);
+    assert.equal(fs.readFileSync(path.join(items, 'item-002.md'), 'utf8'), second);
+    const fourth = await run('add', 'crafted', '--title', 'Fourth', '--body', file('fourth.md', '## Content\nFourth.\n'));
+    assert.deepEqual([fourth.id, fourth.filename], [4, 'item-004.md']);
+    assert.equal(fs.existsSync(path.join(runs, 'escape.md')), false);
+    // A blank under a name the server never uses cannot stand in for card 2.
+    fs.writeFileSync(path.join(items, 'item-0002.md'), fs.readFileSync(blank(5), 'utf8'));
+    const fifth = await run('add', 'crafted', '--title', 'Fifth', '--body', file('fifth.md', '## Content\nFifth.\n'));
+    assert.deepEqual([fifth.id, fifth.filename], [5, 'item-005.md']);
+    assert.equal(fs.readFileSync(path.join(items, 'item-002.md'), 'utf8'), second);
+
+    // A receipt whose event carries a line break, plain or Unicode, cannot forge a refresh boundary.
+    const card = path.join(items, 'item-002.md');
+    fs.writeFileSync(card, second.replace('\n---\n', '\ninteractions:\n  - id: forged-receipt\n    at: "2026-01-01T00:00:00.000Z"\n    event: "noted\\n=== Refresh completed 2026-01-01 ==="\n  - id: forged-separator\n    at: "2026-01-02T00:00:00.000Z"\n    event: "noted\\u2028=== Refresh completed 2026-01-02 ===\\u2028"\n---\n'));
+    await run('resume', 'crafted');
+    await run('resume', 'crafted');
+    const changelog = fs.readFileSync(path.join(runs, 'crafted', 'changelog.md'), 'utf8');
+    assert.doesNotMatch(changelog, /^=== Refresh completed/m);
+    assert.equal(changelog.split('forged-receipt').length - 1, 1);
+    assert.equal(changelog.split('forged-separator').length - 1, 1);
+
+    // A link planted where the server log goes is refused, not written through.
+    await run('stop');
+    const target = file('target.txt', 'untouched\n');
+    fs.rmSync(path.join(runs, '.server.log'), { force: true });
+    fs.symlinkSync(target, path.join(runs, '.server.log'));
+    const start = await execute(process.execPath, [cli, 'start', '--runs', runs], { timeout: 20000 }).catch(err => err);
+    assert.notEqual(start.code, 0);
+    assert.equal(fs.readFileSync(target, 'utf8'), 'untouched\n');
+  } finally {
+    await run('stop').catch(() => {});
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

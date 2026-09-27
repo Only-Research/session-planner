@@ -92,7 +92,7 @@ An agent that can run commands can read and write any file your user account can
 Everything about how the agent plans (contributing its own reasoning, waiting for your go-ahead before processing feedback, leaving approved cards alone) comes from instructions in `skills/`. A language model follows them, and no code enforces them.
 
 **Content the agent reads may try to steer it.**
-A web page found during research, a document you import, or a file dropped into a session's `inbox/` folder could contain text written to manipulate an AI agent. The app renders such content safely in the browser, but it cannot stop the agent from reading it. The planning instructions tell the agent to treat that material as content to plan with, never as instructions, and to tell you if it tries to direct the agent. That lowers the risk; it can't remove it.
+A web page found during research, a document you import, or a file dropped into a session's `inbox/` folder could contain text written to manipulate an AI agent. The app renders such content safely in the browser, but it cannot stop the agent from reading it. The planning instructions tell the agent, and every research helper it briefs, to treat that material as content to plan with, never as instructions, and to tell you if it tries to direct them. That lowers the risk; it can't remove it.
 
 ## Known limits
 

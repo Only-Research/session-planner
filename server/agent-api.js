@@ -46,6 +46,8 @@ module.exports = function registerAgentApi(store) {
     const session = readSession(dir);
     const items = listItemFiles(dir).map(file => {
       const item = parseItemFile(readText(path.join(dir, 'items', file)), `${path.basename(dir)}/items/${file}`);
+      // The filename number is the card's identity, as in readItem, so revisions match.
+      item.data.id = Number(file.match(/\d+/)[0]);
       return { ...item, revision: revision(item), approvalBasis: approvalBasis(item, revision), processingState: processingState(item) };
     });
     const changelog = readText(path.join(dir, 'changelog.md'));

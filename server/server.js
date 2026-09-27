@@ -92,7 +92,14 @@ function padId(id) {
 }
 
 function itemFilename(id) {
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error('invalid item number');
   return `item-${padId(id)}.md`;
+}
+
+// A card's identity is its filename number. The id in its metadata can be
+// hand-edited, so it never decides where a card is written or how it is logged.
+function fileNumber(filename) {
+  return Number(filename.match(/\d+/)[0]);
 }
 
 function titleCase(str) {
@@ -140,6 +147,9 @@ function readItem(sDir, id) {
 }
 
 function writeItem(filepath, data, content) {
+  if (!/^item-\d+\.md$/.test(path.basename(filepath)) || path.basename(path.dirname(filepath)) !== 'items') {
+    throw new Error('refusing to write a card outside a session\'s items folder');
+  }
   // Preserve server-owned nested approval/processing records on every write.
   const metadata = yaml.dump(data, { lineWidth: -1, noRefs: true });
   atomicWrite(filepath, `---\n${metadata}---\n${content}`);
@@ -224,7 +234,13 @@ function extractTitleFromBody(content) {
 function listItemFiles(sDir) {
   const itemsDir = path.join(sDir, 'items');
   assertContained(itemsDir);
-  const files = fs.readdirSync(itemsDir).filter(f => f.match(/^item-\d+\.md$/));
+  // Only the server's own names count: item-2.md or item-0002.md would read as
+  // card 2 and let a crafted blank stand in for it.
+  const files = fs.readdirSync(itemsDir).filter(f => {
+    if (!/^item-\d+\.md$/.test(f)) return false;
+    const n = fileNumber(f);
+    return Number.isSafeInteger(n) && n >= 1 && f === itemFilename(n);
+  });
   for (const file of files) assertContained(path.join(itemsDir, file));
   files.sort((a, b) => {
     const idA = parseInt(a.match(/\d+/)[0], 10);
@@ -379,7 +395,7 @@ app.get('/sessions/:name', (req, res) => {
       const parsed = parseItemFile(raw, `${path.basename(sDir)}/items/${filename}`);
       // Check the metadata as stored, then use the filename number as the card's
       // identity: a hand-edited id is reported, and never reaches the page's HTML.
-      const fileId = Number(filename.match(/\d+/)[0]);
+      const fileId = fileNumber(filename);
       validateChecksum(sDir, fileId, parsed.data);
       parsed.data.id = fileId;
       // Strip markdown headings for body preview (collapsed card 2-line text)
@@ -440,6 +456,7 @@ function createItem(sDir, { title, content, proposed = false, notes, operationId
   const files = listItemFiles(sDir);
   for (const filename of files) {
     const existing = parseItemFile(fs.readFileSync(path.join(sDir, 'items', filename), 'utf8'), `${path.basename(sDir)}/items/${filename}`);
+    existing.data.id = fileNumber(filename);
     if (existing.data.creation?.id === operationId) {
       if (existing.data.creation.fingerprint !== fingerprint) throw Object.assign(new Error('Creation operation ID already used for different content'), { status: 409 });
       bookkeeping(sDir, existing, existing.data.creation);
@@ -450,6 +467,7 @@ function createItem(sDir, { title, content, proposed = false, notes, operationId
   if (!proposed) {
     for (const filename of files) {
       const parsed = parseItemFile(fs.readFileSync(path.join(sDir, 'items', filename), 'utf8'), `${path.basename(sDir)}/items/${filename}`);
+      parsed.data.id = fileNumber(filename);
       if (parsed.data.status === 'blank') { item = parsed; break; }
     }
   }
@@ -533,6 +551,7 @@ function processTitlePromotions(sDir) {
       const filepath = path.join(itemsDir, filename);
       const raw = fs.readFileSync(filepath, 'utf8');
       const parsed = parseItemFile(raw, `${path.basename(sDir)}/items/${filename}`);
+      parsed.data.id = fileNumber(filename);
 
       if (parsed.data.status !== 'blank') continue;
 

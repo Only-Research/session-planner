@@ -24,7 +24,7 @@ For an AI agent whose user has asked it to install or set up Session Planner fro
 
 3. When it reports that Session Planner is ready, tell the user:
 
-   - Keep this folder where it is. The link points here, and sessions are saved in its `runs/` folder. If they move it, the installer needs running again. If the folder is in Downloads, the installer suggests moving the folder into the home folder and running the installer again.
+   - Keep this folder where it is. The link points here, and sessions are saved in its `runs/` folder. To move it, stop the planner first, then run the installer again after the move. If the folder is in Downloads, the installer suggests moving the folder into the home folder and running the installer again.
    - Start a new conversation so the agent loads the new skill, then ask for a planning session in their own words, for example "Let's plan my kitchen renovation in Session Planner."
 
 ## What not to do

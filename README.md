@@ -12,7 +12,7 @@ It all runs on your own computer, and everything is saved as plain files you can
 
 A long chat tends to melt a complicated plan into one draft, so every change means rereading all of it. On the board each piece stays separate. You can settle the budget, argue with the agent about the contractor and leave the timeline open, all at once. Feedback, approvals and history stay with each card, so you can stop at any point and pick the session up later, even with a different agent.
 
-Only you can approve, shelve or reject a card; you do it on the board. The agent's commands can't change a card's status or rewrite one you've approved. It works through your feedback when you tell it to.
+You approve, shelve or reject each card on the board. The agent's commands can't change a card's status or rewrite one you've approved; the [security model](docs/security-model.md#what-the-app-does-not-control) explains where that protection ends. The agent works through your feedback when you tell it to.
 
 The agent is expected to bring its own thinking. Its instructions ask it to add something to every card that you didn't already say (a recommendation with its reasoning, a question worth asking, something worth looking into) and to tell you what it added. A card that only rearranges your words isn't finished. The agent works through the cards with you a step at a time. It asks what you want before it goes looking things up, and keeps its lookups short. A deeper dig waits until you ask for one or agree to its suggestion.
 
@@ -62,7 +62,7 @@ A Terminal window then shows each check. When it says Session Planner is ready, 
 
 ### Keep the folder where it is
 
-Your agent finds the planner through a link to this folder, and your sessions are saved inside it, in `runs/`. If you move the folder, run the installer again.
+Your agent finds the planner through a link to this folder, and your sessions are saved inside it, in `runs/`. To move the folder, ask your agent to stop the planner first, then move it and run the installer again.
 
 If your agent is already connected to another copy of Session Planner, the installer leaves that connection alone, because your sessions may live in that copy's `runs/` folder. To switch to this copy, ask your agent to stop the planner and move the session folders from that copy's `runs/` into this one's `runs/` if you want to keep them, then run `bash install.command --replace` (or ask your agent to run it).
 
@@ -115,6 +115,8 @@ node server/planner.js --help   # every command
 **"The planner couldn't load this" in the browser.** The planner is running but answered with an error, and the message after it says what's wrong. If it names a card file that can't be read, that file was probably edited outside the planner; fix it or restore it from a backup.
 
 **"Another start is in progress."** An earlier start was interrupted. Ask your agent to recover it (the steps are in the `.startup-lock` paragraph of the [operations reference](skills/session-plan/references/operations.md)), and don't delete the lock file yourself.
+
+**"Registered server is not responding but its process still exists."** This can happen after a crash, a power cut, or moving the folder while the planner was running. Ask your agent to sort it out; the steps are in the [operations reference](skills/session-plan/references/operations.md), and the agent checks what that process really is before touching anything.
 
 **A specific port is busy.** This only happens when you ask for a port with `--port`. Leave it out and the planner picks a free one.
 
